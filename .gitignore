@@ -22,3 +22,4 @@ draft-watson-oauth-as-metadata-client-id.xml
 package-lock.json
 report.xml
 !requirements.txt
+.DS_Store
