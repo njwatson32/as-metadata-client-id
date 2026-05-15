@@ -1,4 +1,5 @@
 ---
+
 title: "OAuth Authorization Server Metadata Client ID Parameter"
 abbrev: "OAuth AS Metadata Client ID Param"
 category: info
@@ -122,7 +123,7 @@ Should the authorization server indicate its support for this specification?
         that will reject requests with query parameters. But also there's not
         much difference between (a) calling AS metadata without a client_id,
         seeing `per_client_as_metadata_supported`, and retrying with client_id
-        and (b) following [#client-behavior] above. If anything I'd expect (b)
+        and (b) following [Client Behavior] above. If anything I'd expect (b)
         to be better in practice because most AS aren't going to fail when given
         an unrecognized URL param.
 3.  Echo the `client_id` back as a field in the AS Metadata response.
@@ -148,12 +149,11 @@ certain tradeoffs:
     even before holding or presenting any credentials.
 2.  **Information Disclosure:** Because the request is unauthenticated, an
     attacker or unauthorized third party could query the metadata endpoint with
-    arbitrary client identifiers. This could allow the attacker to enumerate
-    client identifiers or learn specific client configurations, such as which
-    clients have access to beta features or legacy authentication methods. In
-    most environments, metadata is considered public information, but care
-    SHOULD be taken if specific metadata values reveal sensitive business logic
-    or proprietary features.
+    arbitrary client identifiers. This could allow the attacker to learn
+    specific client configurations, such as which clients have access to beta
+    features or legacy authentication methods. In most environments, metadata is
+    considered public information, but care SHOULD be taken if specific metadata
+    values reveal sensitive business logic or proprietary features.
 
 Authorization servers that require strong assurance of the requesting client's
 identity before revealing sensitive metadata could alternatively require client
