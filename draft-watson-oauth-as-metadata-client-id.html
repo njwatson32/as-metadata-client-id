@@ -1335,7 +1335,7 @@ tailored shouldn't change a client's behavior.<a href="#section-4.4-2.1.2.1.1" c
 that will reject requests with query parameters. But also there's not
 much difference between (a) calling AS metadata without a client_id,
 seeing <code>per_client_as_metadata_supported</code>, and retrying with client_id
-and (b) following [#client-behavior] above. If anything I'd expect (b)
+and (b) following [Client Behavior] above. If anything I'd expect (b)
 to be better in practice because most AS aren't going to fail when given
 an unrecognized URL param.<a href="#section-4.4-2.2.2.1.1" class="pilcrow">¶</a></p>
 </li>
@@ -1382,12 +1382,11 @@ even before holding or presenting any credentials.<a href="#section-5.1-2.1.1" c
           <li id="section-5.1-2.2">
             <p id="section-5.1-2.2.1"><strong>Information Disclosure:</strong> Because the request is unauthenticated, an
 attacker or unauthorized third party could query the metadata endpoint with
-arbitrary client identifiers. This could allow the attacker to enumerate
-client identifiers or learn specific client configurations, such as which
-clients have access to beta features or legacy authentication methods. In
-most environments, metadata is considered public information, but care
-<span class="bcp14">SHOULD</span> be taken if specific metadata values reveal sensitive business logic
-or proprietary features.<a href="#section-5.1-2.2.1" class="pilcrow">¶</a></p>
+arbitrary client identifiers. This could allow the attacker to learn
+specific client configurations, such as which clients have access to beta
+features or legacy authentication methods. In most environments, metadata is
+considered public information, but care <span class="bcp14">SHOULD</span> be taken if specific metadata
+values reveal sensitive business logic or proprietary features.<a href="#section-5.1-2.2.1" class="pilcrow">¶</a></p>
 </li>
         </ol>
 <p id="section-5.1-3">Authorization servers that require strong assurance of the requesting client's
