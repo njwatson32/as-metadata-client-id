@@ -1,8 +1,9 @@
 <!-- regenerate: on (set to off if you edit this file) -->
 
-# TODO - Your title
+# OAuth Authorization Server Metadata Client ID Parameter
 
-This is the working area for the individual Internet-Draft, "TODO - Your title".
+This is the working area for the individual Internet-Draft, "OAuth Authorization Server Metadata
+Client ID Parameter".
 
 * [Editor's Copy](https://njwatson32.github.io/as-metadata-client-id/#go.draft-watson-oauth-as-metadata-client-id.html)
 * [Datatracker Page](https://datatracker.ietf.org/doc/draft-watson-oauth-as-metadata-client-id)
