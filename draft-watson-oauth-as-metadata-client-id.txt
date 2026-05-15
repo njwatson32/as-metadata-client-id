@@ -1,0 +1,260 @@
+
+
+
+
+Web Authorization Protocol                                     N. Watson
+Internet-Draft                                               Google, LLC
+Intended status: Informational                               15 May 2026
+Expires: 16 November 2026
+
+
+        OAuth Authorization Server Metadata Client ID Parameter
+            draft-watson-oauth-as-metadata-client-id-latest
+
+Abstract
+
+   This specification extends the OAuth 2.0 Authorization Server
+   Metadata [RFC8414] by defining an optional client_id parameter for
+   the metadata endpoint request.  This parameter enables authorization
+   servers to dynamically tailor the returned metadata on a per-client
+   basis, facilitating gradual rollouts of new features or configuration
+   changes.
+
+About This Document
+
+   This note is to be removed before publishing as an RFC.
+
+   The latest revision of this draft can be found at
+   https://njwatson32.github.io/as-metadata-client-id/draft-watson-
+   oauth-as-metadata-client-id.html.  Status information for this
+   document may be found at https://datatracker.ietf.org/doc/draft-
+   watson-oauth-as-metadata-client-id/.
+
+   Discussion of this document takes place on the Web Authorization
+   Protocol Working Group mailing list (mailto:oauth@ietf.org), which is
+   archived at https://mailarchive.ietf.org/arch/browse/oauth/.
+   Subscribe at https://www.ietf.org/mailman/listinfo/oauth/.
+
+   Source for this draft and an issue tracker can be found at
+   https://github.com/njwatson32/as-metadata-client-id.
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at https://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on 16 November 2026.
+
+Copyright Notice
+
+   Copyright (c) 2026 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.  Code Components
+   extracted from this document must include Revised BSD License text as
+   described in Section 4.e of the Trust Legal Provisions and are
+   provided without warranty as described in the Revised BSD License.
+
+Table of Contents
+
+   1.  Introduction
+   2.  Requirements Notation and Conventions
+   3.  Terminology
+   4.  Metadata Request with Client ID
+     4.1.  Parameter Definition
+     4.2.  Authorization Server Behavior
+     4.3.  Client Behavior
+     4.4.  Open Question: Indicate support for this specification?
+   5.  Security Considerations
+     5.1.  Unauthenticated Requests vs. Client Authentication
+   6.  IANA Considerations
+   7.  Normative References
+   Acknowledgments
+   Author's Address
+
+1.  Introduction
+
+   OAuth 2.0 Authorization Server Metadata [RFC8414] defines a mechanism
+   for an authorization server to publish its configuration details at a
+   well-known location.  Typically, this metadata document is static and
+   homogeneous for all clients consuming it.
+
+   However, in complex production environments, authorization servers
+   frequently undergo configuration updates or feature additions where a
+   global rollout carries significant risk.  Deploying a change
+   simultaneously for all clients makes it difficult to conduct phased
+   rollouts, canary testing, or per-client deprecations without risking
+   wide-scale disruptions.
+
+   This specification introduces an optional client_id parameter to the
+   authorization server metadata request URL.  Providing the client
+   identifier allows the authorization server to tailor the returned
+   metadata document to the specific client requesting it, enabling
+   phased deployments and targeted configuration delivery.
+
+2.  Requirements Notation and Conventions
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in
+   BCP 14 [RFC2119] [RFC8174] when, and only when, they appear in all
+   capitals, as shown here.
+
+3.  Terminology
+
+   "Client" and "Authorization Server" are used as specified in OAuth
+   2.0 [RFC6749].
+
+4.  Metadata Request with Client ID
+
+   Clients MAY include the client_id query parameter when making an HTTP
+   GET request to the authorization server metadata endpoint (e.g.,
+   /.well-known/oauth-authorization-server).
+
+4.1.  Parameter Definition
+
+   client_id  OPTIONAL.  The client identifier as described in
+      Section 2.2 of [RFC6749].
+
+4.2.  Authorization Server Behavior
+
+   When the client_id parameter is present, an authorization server MAY
+   customize the metadata response (including response headers like
+   Cache-Control) based on the specific client.  For example, an
+   authorization server could:
+
+   *  Return new endpoints or supported scopes only to clients that are
+      participating in a beta testing program.
+
+   *  Continue serving legacy authentication methods to backwards-
+      incompatible clients while newer clients receive an updated
+      configuration.
+
+   *  Gradually shift traffic to a new signing key or token endpoint URL
+      for specific clients over time.
+
+   If the authorization server does not recognize the client_id or
+   chooses not to provide customized metadata, it MUST ignore the
+   parameter and return the standard, global authorization server
+   metadata.  This ensures full backward compatibility.
+
+4.3.  Client Behavior
+
+   [RFC8414] does not specify authorization server behavior when query
+   parameters are present, so it's possible that some authorization
+   servers that don't adopt this specification will return an error when
+   given a client_id parameter.  Clients SHOULD gracefully handle HTTP
+   400 errors and retry their request without the client_id parameter.
+
+4.4.  Open Question: Indicate support for this specification?
+
+   Should the authorization server indicate its support for this
+   specification?
+
+   1.  No.
+
+       *  It's unclear what a client would do with this information
+          other than make bad assumptions.  Knowing whether AS metadata
+          was specifically tailored shouldn't change a client's
+          behavior.
+
+   2.  Add a global boolean flag per_client_as_metadata_supported.
+
+       *  This only seems useful if there are many AS Metadata
+          deployments today that will reject requests with query
+          parameters.  But also there's not much difference between (a)
+          calling AS metadata without a client_id, seeing
+          per_client_as_metadata_supported, and retrying with client_id
+          and (b) following [#client-behavior] above.  If anything I'd
+          expect (b) to be better in practice because most AS aren't
+          going to fail when given an unrecognized URL param.
+
+   3.  Echo the client_id back as a field in the AS Metadata response.
+
+       *  It's unclear what benefits this provides over Option 2, but it
+          has the additional downside of preventing the AS from serving
+          a static file for non-customized clients.
+
+5.  Security Considerations
+
+   Providing tailored metadata introduces nuances to the threat model of
+   authorization server configuration discovery.
+
+5.1.  Unauthenticated Requests vs. Client Authentication
+
+   The Authorization Server Metadata endpoint defined in [RFC8414] is
+   typically accessed via unauthenticated HTTP GET requests over TLS.
+   Accepting a bare client_id query parameter without any form of client
+   authentication carries certain tradeoffs:
+
+   1.  *Ease of Deployment:* The primary advantage of accepting a bare
+       client_id is simplicity and compatibility with existing HTTP GET
+       metadata retrieval patterns.  Clients can fetch metadata early in
+       their lifecycle, even before holding or presenting any
+       credentials.
+
+   2.  *Information Disclosure:* Because the request is unauthenticated,
+       an attacker or unauthorized third party could query the metadata
+       endpoint with arbitrary client identifiers.  This could allow the
+       attacker to enumerate client identifiers or learn specific client
+       configurations, such as which clients have access to beta
+       features or legacy authentication methods.  In most environments,
+       metadata is considered public information, but care SHOULD be
+       taken if specific metadata values reveal sensitive business logic
+       or proprietary features.
+
+   Authorization servers that require strong assurance of the requesting
+   client's identity before revealing sensitive metadata could
+   alternatively require client authentication on the metadata request.
+   However, doing so deviates from the standard unauthenticated
+   discovery pattern and might require dedicated credentials or signed
+   assertions, significantly increasing client implementation
+   complexity.
+
+6.  IANA Considerations
+
+   This document has no IANA actions.
+
+7.  Normative References
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/rfc/rfc2119>.
+
+   [RFC6749]  Hardt, D., Ed., "The OAuth 2.0 Authorization Framework",
+              RFC 6749, DOI 10.17487/RFC6749, October 2012,
+              <https://www.rfc-editor.org/rfc/rfc6749>.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/rfc/rfc8174>.
+
+   [RFC8414]  Jones, M., Sakimura, N., and J. Bradley, "OAuth 2.0
+              Authorization Server Metadata", RFC 8414,
+              DOI 10.17487/RFC8414, June 2018,
+              <https://www.rfc-editor.org/rfc/rfc8414>.
+
+Acknowledgments
+
+   TODO
+
+Author's Address
+
+   Nicholas Watson
+   Google, LLC
+   Email: nwatson@google.com
