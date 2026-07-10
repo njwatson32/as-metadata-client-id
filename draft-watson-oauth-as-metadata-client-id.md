@@ -33,12 +33,12 @@ author:
 
 normative:
   RFC6749:
-  RFC6750:
   RFC8414:
-  RFC9110:
   RFC9111:
 
 informative:
+  RFC7009:
+  RFC7662:
   RFC9126:
 
 --- abstract
@@ -165,11 +165,16 @@ serve metadata that the authorization server considers confidential for a
 specific client.
 
 This specification keeps the well-known endpoint unauthenticated and instead
-defines a separate, authenticated client-specific metadata endpoint. Placing
-the confidential variant at its own URL, rather than varying the well-known
-response on request credentials, keeps cache behavior a static property of
-each URL ({{caching-considerations}}) and gives failed authentication an
-unambiguous error rather than a silently downgraded response.
+defines a separate, authenticated client-specific metadata endpoint. The
+endpoint is published and protected the same way as the token revocation
+[RFC7009] and token introspection [RFC7662] endpoints: it is advertised in
+authorization server metadata together with its supported client
+authentication methods, and the client authenticates to it directly using its
+registered client authentication method. Placing the confidential variant at
+its own URL, rather than varying the well-known response on request
+credentials, keeps cache behavior a static property of each URL
+({{caching-considerations}}) and gives failed authentication an unambiguous
+error rather than a silently downgraded response.
 
 ## Endpoint Discovery {#endpoint-discovery}
 
@@ -177,10 +182,29 @@ Authorization servers that offer confidential client-specific metadata
 advertise the endpoint with the following authorization server metadata
 parameter:
 
+{: newline="true"}
 client_specific_metadata_endpoint
 :   OPTIONAL. URL of the authorization server's client-specific metadata
     endpoint ({{client-specific-metadata-request}}). The URL MUST use the
     `https` scheme and MUST be distinct from the well-known metadata URL.
+
+client_specific_metadata_endpoint_auth_methods_supported
+:   OPTIONAL. JSON array containing a list of client authentication methods
+    supported by the client-specific metadata endpoint. The values are those
+    used with the token endpoint, as defined for
+    `token_endpoint_auth_methods_supported` in Section 2 of [RFC8414]. If
+    omitted, the default is `client_secret_basic`.
+
+client_specific_metadata_endpoint_auth_signing_alg_values_supported
+:   OPTIONAL. JSON array containing a list of the JWS signing algorithms
+    (`alg` values) supported by the client-specific metadata endpoint for the
+    signature on the JWT used to authenticate the client for the
+    `private_key_jwt` and `client_secret_jwt` authentication methods. The
+    value `none` MUST NOT be used.
+
+These parameters parallel the advertisement of the token revocation [RFC7009]
+and token introspection [RFC7662] endpoints in [RFC8414], so an authorization
+server can publish and protect all three endpoints the same way.
 
 The parameter's presence in a metadata response tells the client that an
 authenticated variant of its metadata is available; its absence tells the
@@ -197,30 +221,38 @@ For example, the unauthenticated metadata response for
   "authorization_endpoint": "https://as.example.com/authorize",
   "token_endpoint": "https://as.example.com/token",
   "client_specific_metadata_endpoint":
-    "https://as.example.com/client-metadata"
+    "https://as.example.com/client-metadata",
+  "client_specific_metadata_endpoint_auth_methods_supported":
+    ["private_key_jwt"]
 }
 ~~~
 
 ## Metadata Request {#client-specific-metadata-request}
 
-The client-specific metadata endpoint is an OAuth 2.0 protected resource. The
-client obtains an access token from the token endpoint, which it learns from
-the unauthenticated metadata document, and presents it in an HTTP GET request,
-for example as a bearer token [RFC6750]:
+The client requests its metadata with an HTTP POST request to the
+client-specific metadata endpoint with a `Content-Type` of
+`application/x-www-form-urlencoded`, authenticating exactly as it would at
+the token endpoint using its registered client authentication method
+(Section 2.3 of [RFC6749]). This mirrors the token revocation [RFC7009] and
+token introspection [RFC7662] endpoints.
+
+The request defines no parameters of its own; the authenticated client
+identity determines whose metadata is returned. The request body is empty
+except for parameters carried by the client authentication method itself,
+such as `client_assertion` and `client_assertion_type` for the
+`private_key_jwt` method:
 
 ~~~ http
-GET /client-metadata HTTP/1.1
+POST /client-metadata HTTP/1.1
 Host: as.example.com
-Authorization: Bearer 2YotnFZFEjr1zCsicMWpAA
+Content-Type: application/x-www-form-urlencoded
+
+client_assertion_type=urn%3Aietf%3Aparams%3Aoauth%3A
+client-assertion-type%3Ajwt-bearer&
+client_assertion=eyJhbGciOiJFUzI1NiIsImtpZCI6IjE2In0.eyJpc3Mi...
 ~~~
 
-The request contains no `client_id` parameter; the authorization server
-determines the client from the access token and returns the metadata for that
-client. Clients typically obtain the token with the `client_credentials` grant
-using their registered client authentication method, so the endpoint composes
-with any client authentication method without defining a new authentication
-scheme for GET requests. The authorization server MAY require a dedicated
-scope for this endpoint.
+(Line breaks within the request body are for display purposes only.)
 
 Only confidential clients can retrieve confidential metadata. A client that
 cannot authenticate cannot be distinguished from an impersonator, so no
@@ -236,16 +268,13 @@ do not merge it with the unauthenticated document, so no client-side
 precedence rules are needed.
 
 The response MUST include a `Cache-Control` header field containing the
-`no-store` or `private` directive so that shared caches never store it
-({{caching-considerations}}). The authorization server SHOULD support
-conditional requests using entity tags [RFC9110] so that clients holding a
-local copy can revalidate it cheaply.
+`no-store` directive so that it is never stored by caches
+({{caching-considerations}}).
 
 ~~~ http
 HTTP/1.1 200 OK
 Content-Type: application/json
-Cache-Control: private, max-age=300
-ETag: "af7cd41b"
+Cache-Control: no-store
 ~~~
 ~~~ json
 {
@@ -254,6 +283,8 @@ ETag: "af7cd41b"
   "token_endpoint": "https://as.example.com/token",
   "client_specific_metadata_endpoint":
     "https://as.example.com/client-metadata",
+  "client_specific_metadata_endpoint_auth_methods_supported":
+    ["private_key_jwt"],
   "pushed_authorization_request_endpoint":
     "https://as.example.com/beta/par"
 }
@@ -266,12 +297,15 @@ in the authenticated document, not in any unauthenticated metadata response.
 
 ## Error Responses {#client-specific-metadata-errors}
 
-If the request lacks a valid access token, the endpoint responds according to
-the error rules of the token type, for example HTTP 401 with a
-`WWW-Authenticate` challenge for bearer tokens (Section 3 of [RFC6750]). The
-error response MUST be identical whether or not the token's client has any
-client-specific metadata, so that the endpoint does not act as an oracle for
-which clients receive tailored configuration.
+A request whose client authentication is missing or invalid is answered as
+the token endpoint would answer it: with the `invalid_client` error defined
+in Section 5.2 of [RFC6749], using HTTP status code 401 and a
+`WWW-Authenticate` challenge when the client attempted to authenticate
+through the `Authorization` header field. The error response MUST be
+identical whether or not the client has any client-specific metadata, so that
+the endpoint does not act as an oracle for which clients receive tailored
+configuration. A successfully authenticated client always receives a complete
+document, even when it contains no confidential values.
 
 Unlike the well-known endpoint, the client-specific metadata endpoint MUST NOT
 fall back to returning global or public metadata when authentication fails.
@@ -309,17 +343,18 @@ this failure mode.
 ## Client-Specific Metadata Endpoint {#caching-client-specific}
 
 Responses from the client-specific metadata endpoint MUST NOT be stored by
-shared caches. The authorization server enforces this with
-`Cache-Control: no-store`, or with `Cache-Control: private` and a short
-freshness lifetime when clients benefit from reusing a local copy. Because the
-endpoint is a dedicated URL, a CDN in front of the authorization server can
-additionally be configured to bypass caching for the path with a static rule;
-no credential-dependent cache configuration is required.
+caches. Requests use the POST method, whose responses are not reusable by
+caches without explicit freshness information [RFC9111], and the mandatory
+`Cache-Control: no-store` header field
+({{client-specific-metadata-response}}) makes the exclusion explicit. Because
+the endpoint is a dedicated URL, a CDN in front of the authorization server
+can additionally be configured to bypass caching for the path with a static
+rule; no credential-dependent cache configuration is required.
 
-Because every request reaches the origin, authorization servers SHOULD support
-conditional revalidation as described in
-{{client-specific-metadata-response}} and MAY apply rate limits to the
-endpoint.
+Because every request reaches the origin, authorization servers MAY apply
+rate limits to the endpoint. Clients SHOULD retain a retrieved document and
+reuse it rather than fetching it for each protocol interaction, refreshing it
+on the same schedule they would apply to the well-known metadata document.
 
 # Security Considerations
 
@@ -375,14 +410,24 @@ a verifiable record of the configuration it was issued.
 
 ## OAuth Authorization Server Metadata Registration
 
-This specification registers the following metadata name in the IANA "OAuth
-Authorization Server Metadata" registry established by [RFC8414].
+This specification registers the following metadata names in the IANA "OAuth
+Authorization Server Metadata" registry established by [RFC8414]. The change
+controller for each is the IESG, and the specification document for each is
+{{endpoint-discovery}} of this document.
 
-*   Metadata Name: `client_specific_metadata_endpoint`
-*   Metadata Description: URL of the authorization server's client-specific
+{: newline="true"}
+client_specific_metadata_endpoint
+:   Metadata Description: URL of the authorization server's client-specific
     metadata endpoint
-*   Change Controller: IESG
-*   Specification Document(s): {{endpoint-discovery}} of this document
+
+client_specific_metadata_endpoint_auth_methods_supported
+:   Metadata Description: JSON array containing a list of client
+    authentication methods supported by the client-specific metadata endpoint
+
+client_specific_metadata_endpoint_auth_signing_alg_values_supported
+:   Metadata Description: JSON array containing a list of the JWS signing
+    algorithms supported by the client-specific metadata endpoint for the
+    signature on the JWT used to authenticate the client
 
 --- back
 
