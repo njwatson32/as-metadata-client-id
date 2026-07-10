@@ -170,11 +170,9 @@ endpoint is published and protected the same way as the token revocation
 [RFC7009] and token introspection [RFC7662] endpoints: it is advertised in
 authorization server metadata together with its supported client
 authentication methods, and the client authenticates to it directly using its
-registered client authentication method. Placing the confidential variant at
-its own URL, rather than varying the well-known response on request
-credentials, keeps cache behavior a static property of each URL
-({{caching-considerations}}) and gives failed authentication an unambiguous
-error rather than a silently downgraded response.
+registered client authentication method. The rationale for a separate
+endpoint, rather than an authenticated variant of the well-known URL, is
+discussed in {{design-rationale}}.
 
 ## Endpoint Discovery {#endpoint-discovery}
 
@@ -430,6 +428,44 @@ client_specific_metadata_endpoint_auth_signing_alg_values_supported
     signature on the JWT used to authenticate the client
 
 --- back
+
+# Design Rationale {#design-rationale}
+
+An alternative design would serve both variants from the well-known URL,
+returning richer metadata when the request carries valid client credentials.
+This specification instead adds a second endpoint, for three reasons.
+
+Public metadata is the common case. The well-known document is fetched
+overwhelmingly by parties that need only public metadata, and [RFC8414]
+deployments serve it from static files and shared caches. The `client_id`
+parameter preserves that profile: a tailored public document is still a
+static resource keyed by its URL. A well-known URL whose response depends on
+request credentials would burden the common case with the requirements of the
+rare one. The two mechanisms therefore layer: the query parameter alone
+serves deployments whose tailored metadata is public, and the endpoint is an
+additive step for the narrower case of confidential metadata, discoverable
+from the metadata document itself and available only to confidential clients.
+
+Hosting infrastructure configures caching per URL. When cache behavior is a
+static property of each URL, a CDN serves the well-known path under one cache
+rule and bypasses the endpoint path under another; both rules are simple and
+fail safe. When cacheability instead depends on request credentials,
+correctness rests on `Vary` and `Authorization` handling that is inconsistent
+across shared caches, and a single misconfiguration serves one client's
+confidential metadata to all parties ({{caching-considerations}}). A
+credentialed variant of the well-known URL would also give failed
+authentication a poor failure mode: an error on a URL that must remain
+unauthenticated, or a silent downgrade to the public document that the client
+mistakes for its complete configuration.
+
+Existing OAuth implementations already contain both halves. Retrieving the
+well-known document with an additional query parameter requires no changes to
+metadata libraries. The endpoint reuses the request shape, client
+authentication, and error semantics of token revocation [RFC7009] and token
+introspection [RFC7662], so authorization servers can protect it with the
+same machinery they already apply to those endpoints, and clients
+authenticate with the code they already use at the token endpoint. Neither
+side implements a new mechanism; each configures a URL.
 
 # Acknowledgments
 {:numbered="false"}
