@@ -1,6 +1,6 @@
 {
   "magic": "E!vIA5L86J2I",
-  "timestamp": "2026-07-09T03:29:12.904477+00:00",
+  "timestamp": "2026-07-12T02:55:40.957053+00:00",
   "repo": "njwatson32/as-metadata-client-id",
   "labels": [
     {
@@ -49,6 +49,50 @@
       "color": "ffffff"
     }
   ],
-  "issues": [],
-  "pulls": []
+  "issues": [
+    {
+      "number": 1,
+      "id": "I_kwDOSepz-s8AAAABIZhcsg",
+      "title": "Confidential client-specific metadata: add an authenticated client-specific metadata endpoint",
+      "url": "https://github.com/njwatson32/as-metadata-client-id/issues/1",
+      "state": "OPEN",
+      "author": "mcguinness",
+      "authorAssociation": "NONE",
+      "assignees": [],
+      "labels": [],
+      "body": "The Security Considerations section acknowledges that some client-specific metadata values can reveal sensitive business logic or proprietary features, and notes that requiring client authentication on the metadata request \"deviates from the standard unauthenticated discovery pattern\" and increases client complexity. As currently written, the draft leaves confidential per-client metadata without a mechanism.\n\n## Proposal\n\nKeep the well-known endpoint unauthenticated and cacheable (the `client_id` query parameter remains the baseline mechanism), and add an optional client-specific metadata endpoint for the confidential case, published and protected the same way as token revocation (RFC 7009) and token introspection (RFC 7662):\n\n- Advertised in AS metadata as `client_specific_metadata_endpoint`, with `client_specific_metadata_endpoint_auth_methods_supported` and `..._auth_signing_alg_values_supported` companions following the RFC 8414 convention for revocation/introspection.\n- HTTP POST with the client's registered client authentication method; the request defines no parameters of its own, and the authenticated client identity determines whose metadata is returned. Only confidential clients can use it, which is inherent: metadata served to a client that cannot authenticate cannot remain confidential.\n- The response is the complete merged metadata document (global + public client-specific + confidential client-specific), so clients never run merge logic, with `Cache-Control: no-store`.\n- Token endpoint error semantics (`invalid_client`); errors are identical whether or not the client has tailored metadata, and the endpoint never falls back to public metadata.\n- Confidential values appear only in the authenticated document, so cache skew between the two variants cannot produce contradictions.\n\n## Why a second endpoint instead of authenticating the well-known URL\n\n- Public metadata is the common case: a tailored public document is still a static resource keyed by its URL and keeps the existing CDN/static-file serving profile.\n- Cache behavior stays a static property of each URL. A credential-dependent well-known response rests on `Vary`/`Authorization` handling that is inconsistent across shared caches, where one misconfiguration serves a confidential response to everyone.\n- Both halves reuse existing OAuth code: metadata fetch with a query parameter needs no library changes, and the endpoint reuses revocation/introspection middleware server-side and token-endpoint client authentication client-side.\n\nThe two mechanisms layer: the query parameter alone serves deployments whose tailored metadata is public; the endpoint is an additive step for the narrower confidential case, discoverable from the metadata document itself.\n\nA PR with full spec text (including caching considerations, security considerations updates, IANA registrations, and a design rationale appendix) follows.\n",
+      "createdAt": "2026-07-10T20:57:23Z",
+      "updatedAt": "2026-07-10T20:57:23Z",
+      "closedAt": null,
+      "comments": []
+    }
+  ],
+  "pulls": [
+    {
+      "number": 2,
+      "id": "PR_kwDOSepz-s7wWOOK",
+      "title": "Add authenticated client-specific metadata endpoint for confidential metadata",
+      "url": "https://github.com/njwatson32/as-metadata-client-id/pull/2",
+      "state": "OPEN",
+      "author": "mcguinness",
+      "authorAssociation": "NONE",
+      "assignees": [],
+      "labels": [],
+      "body": "Addresses #1.\n\nAdds an optional, authenticated path for confidential client-specific metadata while keeping the well-known endpoint unauthenticated and cacheable. The `client_id` query parameter remains the baseline mechanism; the endpoint is an additive layer for the confidential case.\n\n## Changes\n\n- **Client-Specific Metadata Endpoint (new Section 5)**: published and protected like token revocation (RFC 7009) and token introspection (RFC 7662). Discovery via `client_specific_metadata_endpoint` plus `..._auth_methods_supported` and `..._auth_signing_alg_values_supported` companions following the RFC 8414 convention. POST with the client's registered client authentication method; no request parameters; the response is the complete merged metadata document with `Cache-Control: no-store`. Token endpoint error semantics, identical errors regardless of whether tailored metadata exists, and no fallback to public metadata.\n- **Caching Considerations (new Section 6)**: the well-known endpoint stays cacheable per URL (query string fragments the cache per client) and MUST NOT vary on request credentials; the endpoint path is excluded from caching with a static rule. Rationale for avoiding `Vary: Authorization` spelled out.\n- **Security Considerations**: the existing \"could alternatively require client authentication\" paragraph now resolves to the new endpoint; confidential values MUST NOT appear in unauthenticated responses; new Metadata Integrity subsection pointing at RFC 8414 `signed_metadata`.\n- **IANA Considerations**: registers the three new AS metadata parameters.\n- **Design Rationale (Appendix A)**: why a second endpoint instead of two access paths on the well-known URL \u2014 public metadata is the common case, hosting infrastructure configures caching per URL, and both mechanisms reuse existing OAuth library/middleware code.\n\n## Notes\n\n- Builds cleanly with kdrfc/xml2rfc; all cross-references resolve.\n- The pre-existing `[Client Behavior]` section link in the Open Question section does not resolve in kramdown-rfc and renders literally; left untouched here since it predates this change.\n",
+      "createdAt": "2026-07-10T20:57:56Z",
+      "updatedAt": "2026-07-10T20:57:56Z",
+      "baseRepository": "njwatson32/as-metadata-client-id",
+      "baseRefName": "main",
+      "baseRefOid": "9cbd109f5d803339791bd004b39702ac9eb4dcb9",
+      "headRepository": "mcguinness/as-metadata-client-id",
+      "headRefName": "client-specific-metadata-endpoint",
+      "headRefOid": "665c3b2c0801da84ee3f1abc1bb9c89f60eb1b86",
+      "closedAt": null,
+      "mergedAt": null,
+      "mergedBy": null,
+      "mergeCommit": null,
+      "comments": [],
+      "reviews": []
+    }
+  ]
 }
