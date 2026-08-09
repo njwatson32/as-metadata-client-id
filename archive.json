@@ -1,6 +1,6 @@
 {
   "magic": "E!vIA5L86J2I",
-  "timestamp": "2026-07-12T02:55:40.957053+00:00",
+  "timestamp": "2026-08-09T01:51:21.207890+00:00",
   "repo": "njwatson32/as-metadata-client-id",
   "labels": [
     {
@@ -80,7 +80,7 @@
       "labels": [],
       "body": "Addresses #1.\n\nAdds an optional, authenticated path for confidential client-specific metadata while keeping the well-known endpoint unauthenticated and cacheable. The `client_id` query parameter remains the baseline mechanism; the endpoint is an additive layer for the confidential case.\n\n## Changes\n\n- **Client-Specific Metadata Endpoint (new Section 5)**: published and protected like token revocation (RFC 7009) and token introspection (RFC 7662). Discovery via `client_specific_metadata_endpoint` plus `..._auth_methods_supported` and `..._auth_signing_alg_values_supported` companions following the RFC 8414 convention. POST with the client's registered client authentication method; no request parameters; the response is the complete merged metadata document with `Cache-Control: no-store`. Token endpoint error semantics, identical errors regardless of whether tailored metadata exists, and no fallback to public metadata.\n- **Caching Considerations (new Section 6)**: the well-known endpoint stays cacheable per URL (query string fragments the cache per client) and MUST NOT vary on request credentials; the endpoint path is excluded from caching with a static rule. Rationale for avoiding `Vary: Authorization` spelled out.\n- **Security Considerations**: the existing \"could alternatively require client authentication\" paragraph now resolves to the new endpoint; confidential values MUST NOT appear in unauthenticated responses; new Metadata Integrity subsection pointing at RFC 8414 `signed_metadata`.\n- **IANA Considerations**: registers the three new AS metadata parameters.\n- **Design Rationale (Appendix A)**: why a second endpoint instead of two access paths on the well-known URL \u2014 public metadata is the common case, hosting infrastructure configures caching per URL, and both mechanisms reuse existing OAuth library/middleware code.\n\n## Notes\n\n- Builds cleanly with kdrfc/xml2rfc; all cross-references resolve.\n- The pre-existing `[Client Behavior]` section link in the Open Question section does not resolve in kramdown-rfc and renders literally; left untouched here since it predates this change.\n",
       "createdAt": "2026-07-10T20:57:56Z",
-      "updatedAt": "2026-07-10T20:57:56Z",
+      "updatedAt": "2026-08-07T19:59:29Z",
       "baseRepository": "njwatson32/as-metadata-client-id",
       "baseRefName": "main",
       "baseRefOid": "9cbd109f5d803339791bd004b39702ac9eb4dcb9",
@@ -92,7 +92,28 @@
       "mergedBy": null,
       "mergeCommit": null,
       "comments": [],
-      "reviews": []
+      "reviews": [
+        {
+          "id": "PRR_kwDOSepz-s8AAAABIz0APQ",
+          "commit": {
+            "abbreviatedOid": "665c3b2"
+          },
+          "author": "njwatson32",
+          "authorAssociation": "OWNER",
+          "state": "COMMENTED",
+          "body": "",
+          "createdAt": "2026-08-07T19:59:28Z",
+          "updatedAt": "2026-08-07T19:59:29Z",
+          "comments": [
+            {
+              "originalPosition": 262,
+              "body": "with the rest of the spec language, shouldn't this say MUST NOT?",
+              "createdAt": "2026-08-07T19:59:29Z",
+              "updatedAt": "2026-08-07T19:59:29Z"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
